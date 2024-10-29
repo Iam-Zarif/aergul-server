@@ -26,6 +26,8 @@ app.use(
   })
 );
 app.use(express.json());
+app.options("*", cors()); // Enable pre-flight for all routes
+
 
 // Set Content Security Policy
 app.use((req, res, next) => {
