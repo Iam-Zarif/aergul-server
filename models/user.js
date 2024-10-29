@@ -6,13 +6,13 @@ const userSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     photo: { type: String, required: true },
-    otp: { type: String }, // For storing OTP
-    otpExpiration: { type: Date }, // For storing OTP expiration time
+    otp: { type: String },
+    otpExpiration: { type: Date }, 
   },
   {
-    timestamps: true, // Automatically create createdAt and updatedAt fields
+    timestamps: true, 
   }
 );
 
-module.exports = mongoose.model("User", userSchema); // Naming convention for model
+module.exports = mongoose.model("User", userSchema); 
 // user.js

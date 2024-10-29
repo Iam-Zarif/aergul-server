@@ -29,6 +29,7 @@
     "nodemailer": "^6.9.15",
     "rate-limit-express": "^2.2.2",
     "redis": "^4.7.0",
+    "vercel": "^37.12.1",
     "yup": "^1.4.0"
   },
   "devDependencies": {
