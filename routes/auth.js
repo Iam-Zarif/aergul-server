@@ -2,11 +2,16 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
-const User = require("../models/user"); // Ensure this path is correct
+const User = require("../models/user");
+const cookieParser = require("cookie-parser");
+const rateLimit = require("express-rate-limit");
+const cloudinary = require("cloudinary").v2;
+const dotenv = require("dotenv");
+
+dotenv.config();
 
 const router = express.Router();
 
-// Nodemailer transporter setup
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -15,73 +20,117 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// User registration route
-router.post("/register", async (req, res) => {
-  const { name, email, password } = req.body;
-
-  try {
-    // Check if the user already exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ message: "User already exists." });
-    }
-
-    // Hash the password
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = new User({ name, email, password: hashedPassword });
-
-    // Generate OTP and set expiration
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    newUser.otp = otp;
-    newUser.otpExpiration = Date.now() + 300000; // 5 minutes
-
-    // Save the user
-    await newUser.save();
-
-    // Send OTP via email
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: email,
-      subject: "Your OTP Code",
-      text: `Your OTP code is ${otp}`,
-    });
-
-    res
-      .status(201)
-      .json({ message: "User registered successfully, OTP sent." });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server error." });
-  }
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: "Too many registrations from this IP, please try again later.",
 });
 
-// OTP verification route
-router.post("/verify-otp", async (req, res) => {
-  const { email, otp } = req.body;
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
+router.post("/register", limiter, async (req, res) => {
   try {
-    const user = await User.findOne({ email });
+    const { name, email, password, photo } = req.body;
 
-    // Validate user and OTP
-    if (!user || user.otp !== otp || Date.now() > user.otpExpiration) {
-      return res.status(400).json({ message: "Invalid or expired OTP." });
+    if (!name || !email || !password || !photo) {
+      return res.status(400).json({ message: "All fields are required." });
     }
 
-    // Clear OTP fields
-    user.otp = undefined;
-    user.otpExpiration = undefined;
-    await user.save();
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res
+        .status(400)
+        .json({ message: "Email is already registered.", status: 400 });
+    }
 
-    // Generate JWT token
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const uploadResult = await cloudinary.uploader.upload(photo, {
+      folder: "user_photos",
+    });
+
+    const newUser = new User({
+      name,
+      email,
+      password: hashedPassword,
+      photo: uploadResult.secure_url,
+    });
+
+    await newUser.save();
+
+    const token = jwt.sign({ email, name }, process.env.JWT_SECRET, {
       expiresIn: "1h",
     });
 
-    res.status(200).json({ token });
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 3600000,
+      sameSite: "Strict",
+      path: "/",
+    });
+
+    res.status(201).json({ message: "User registered successfully", token ,data:req.body });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server error." });
+    console.error("Registration error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+
+
+router.post("/login", limiter, async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res
+        .status(400)
+        .json({ message: "Email and password are required." });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ message: "Invalid email or password." });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid email or password." });
+    }
+
+    const token = jwt.sign(
+      { email: user.email, name: user.name },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "1h",
+      }
+    );
+
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 3600000,
+      sameSite: "Strict",
+      path: "/",
+    });
+
+    res
+      .status(200)
+      .json({
+        message: "Login successful",
+        token,
+        user: { name: user.name, email: user.email, photo: user.photo },
+      });
+  } catch (error) {
+    console.error("Login error:", error);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
 module.exports = router;
+// auth.js
