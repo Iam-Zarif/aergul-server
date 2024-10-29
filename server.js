@@ -19,7 +19,7 @@ app.use(limiter);
 app.use(helmet());
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: ["http://localhost:5173/", "https://aergul-mu.vercel.app/"], // Allow both origins
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
     credentials: true,
     optionsSuccessStatus: 204,
