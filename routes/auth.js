@@ -2,27 +2,22 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
+const passport = require("../config/passport.js");
 const User = require("../models/user");
 const cookieParser = require("cookie-parser");
 const rateLimit = require("express-rate-limit");
 const cloudinary = require("cloudinary").v2;
 const dotenv = require("dotenv");
+const Profile = require("../models/profileSchema");
 
 dotenv.config();
 
 const router = express.Router();
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 5,
+  max: 500,
   message: "Too many registrations from this IP, please try again later.",
 });
 
@@ -32,19 +27,20 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+// Import Profile model
+
+
 router.post("/register", limiter, async (req, res) => {
   try {
     const { name, email, password, photo } = req.body;
 
-    if (!name || !email || !password || !photo) {
+    if (!name || !email ||  !photo) {
       return res.status(400).json({ message: "All fields are required." });
     }
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res
-        .status(400)
-        .json({ message: "Email is already registered.", status: 400 });
+      return res.status(400).json({ message: "Email is already registered." });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -62,6 +58,15 @@ router.post("/register", limiter, async (req, res) => {
 
     await newUser.save();
 
+    const newProfile = new Profile({
+      name,
+      email,
+      password: hashedPassword, 
+      profilePhoto: uploadResult.secure_url,
+    });
+
+    await newProfile.save();
+
     const token = jwt.sign({ email, name }, process.env.JWT_SECRET, {
       expiresIn: "1h",
     });
@@ -71,10 +76,9 @@ router.post("/register", limiter, async (req, res) => {
       secure: process.env.NODE_ENV === "production",
       maxAge: 3600000,
       sameSite: "Strict",
-      path: "/",
     });
 
-    res.status(201).json({ message: "User registered successfully", token ,data:req.body });
+    res.status(201).json({ message: "User registered successfully", token });
   } catch (error) {
     console.error("Registration error:", error);
     res.status(500).json({ message: "Server error" });
@@ -83,11 +87,12 @@ router.post("/register", limiter, async (req, res) => {
 
 
 
+
 router.post("/login", limiter, async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    if (!email || !password) {
+    if (!email ) {
       return res
         .status(400)
         .json({ message: "Email and password are required." });
@@ -95,7 +100,7 @@ router.post("/login", limiter, async (req, res) => {
 
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ message: "Invalid email or password." });
+      return res.status(404).json({ message: "Email not found" });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
@@ -106,9 +111,7 @@ router.post("/login", limiter, async (req, res) => {
     const token = jwt.sign(
       { email: user.email, name: user.name },
       process.env.JWT_SECRET,
-      {
-        expiresIn: "1h",
-      }
+      { expiresIn: "1h" }
     );
 
     res.cookie("token", token, {
@@ -116,21 +119,23 @@ router.post("/login", limiter, async (req, res) => {
       secure: process.env.NODE_ENV === "production",
       maxAge: 3600000,
       sameSite: "Strict",
-      path: "/",
     });
 
-    res
-      .status(200)
-      .json({
-        message: "Login successful",
-        token,
-        user: { name: user.name, email: user.email, photo: user.photo },
-      });
+    // Fetch profile data for response
+    const profile = await Profile.findOne({ email }).select("-password");
+
+    res.status(201).json({
+      message: "Login successful",
+      token,
+      user: profile, // Return profile data for frontend use
+    });
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({ message: "Server error" });
   }
 });
 
+
+
 module.exports = router;
-// auth.js
+//routes - auth.js

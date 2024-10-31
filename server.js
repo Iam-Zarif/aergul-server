@@ -4,6 +4,8 @@ const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const authRoutes = require("./routes/auth");
 const { connectDB } = require("./config/db");
+const profileRoutes = require("./routes/profile"); // Profile routes
+
 const cookieParser = require("cookie-parser");
 
 const app = express();
@@ -36,6 +38,7 @@ app.use((req, res, next) => {
 connectDB();
 
 app.use("/auth", authRoutes);
+app.use("/user", profileRoutes);
 
 app.get("/", (req, res) => {
   res.send("Welcome to the API!");
@@ -46,3 +49,4 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+// server.js base file

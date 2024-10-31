@@ -4,7 +4,7 @@ const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
+    password: { type: String },
     photo: { type: String, required: true },
     otp: { type: String },
     otpExpiration: { type: Date }, 
@@ -15,4 +15,4 @@ const userSchema = new mongoose.Schema(
 );
 
 module.exports = mongoose.model("User", userSchema); 
-// user.js
+//models - user.js
