@@ -104,6 +104,14 @@ const profileSchema = new mongoose.Schema({
       Timestamp: true,
     },
   ],
+  isGoogleUser: {
+    type: Boolean,
+    default: false,
+  },
+  isFacebookUser: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 module.exports = mongoose.model("Profile", profileSchema);

@@ -49,14 +49,6 @@ router.post("/register", limiter, async (req, res) => {
       folder: "user_photos",
     });
 
-    const newUser = new User({
-      name,
-      email,
-      password: hashedPassword,
-      photo: uploadResult.secure_url,
-    });
-
-    await newUser.save();
 
     const newProfile = new Profile({
       name,
