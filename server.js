@@ -13,8 +13,8 @@ app.use(cookieParser());
 
 app.use(helmet());
 const corsOptions = {
-  origin: "http://localhost:5173", 
-  credentials: true, 
+  origin: ["http://localhost:5173", "https://aergul-mu.vercel.app"],
+  credentials: true,
 };
 https: app.use(cors(corsOptions));
 app.use(express.json());
