@@ -3,12 +3,13 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const passport = require("../config/passport.js");
-const User = require("../models/user");
 const cookieParser = require("cookie-parser");
 const rateLimit = require("express-rate-limit");
 const cloudinary = require("cloudinary").v2;
 const dotenv = require("dotenv");
 const Profile = require("../models/profileSchema");
+const { generateOTP, sendOTP } = require("../service/otpService");
+
 
 dotenv.config();
 
@@ -29,16 +30,16 @@ cloudinary.config({
 
 // Import Profile model
 
-
 router.post("/register", limiter, async (req, res) => {
+  const otpStore = new Map();
   try {
     const { name, email, password, photo } = req.body;
 
-    if (!name || !email ||  !photo) {
+    if (!name || !email || !photo) {
       return res.status(400).json({ message: "All fields are required." });
     }
 
-    const existingUser = await User.findOne({ email });
+    const existingUser = await Profile.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: "Email is already registered." });
     }
@@ -49,11 +50,10 @@ router.post("/register", limiter, async (req, res) => {
       folder: "user_photos",
     });
 
-
     const newProfile = new Profile({
       name,
       email,
-      password: hashedPassword, 
+      password: hashedPassword,
       profilePhoto: uploadResult.secure_url,
     });
 
@@ -70,12 +70,24 @@ router.post("/register", limiter, async (req, res) => {
       sameSite: "Strict",
     });
 
-    res.status(201).json({ message: "User registered successfully", token });
+    const otp = generateOTP();
+    await sendOTP(email, otp);
+
+    otpStore.set(email, { otp, expiresAt: Date.now() + 10 * 60000 });
+    res
+      .status(201)
+      .json({
+        message: "OTP sent for account creation",
+        token,
+        otp,
+        profile: newProfile,
+      });
   } catch (error) {
     console.error("Registration error:", error);
     res.status(500).json({ message: "Server error" });
   }
 });
+
 
 
 
@@ -90,7 +102,7 @@ router.post("/login", limiter, async (req, res) => {
         .json({ message: "Email and password are required." });
     }
 
-    const user = await User.findOne({ email });
+    const user = await Profile.findOne({ email });
     if (!user) {
       return res.status(404).json({ message: "Email not found" });
     }
