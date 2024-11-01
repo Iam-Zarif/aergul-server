@@ -19,9 +19,13 @@ const limiter = rateLimit({
 
 app.use(limiter);
 app.use(helmet());
-app.use(
-  cors()
-);
+const corsOptions = {
+  origin: "http://localhost:5173", // Allow only this origin
+  credentials: true, // Enable set cookie for cross-origin requests
+};
+
+// Use CORS middleware with options
+app.use(cors(corsOptions));
 app.use(express.json());
 
 

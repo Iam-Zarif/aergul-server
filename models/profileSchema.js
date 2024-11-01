@@ -20,7 +20,6 @@ const profileSchema = new mongoose.Schema({
   },
   phone: {
     type: String, // Remove `required: true` to make it optional
-    unique: true,
   },
   address: {
     street: String,
