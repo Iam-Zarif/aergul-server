@@ -15,7 +15,6 @@ const profileSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: true,
     minlength: 6,
   },
   phone: {
@@ -80,11 +79,12 @@ const profileSchema = new mongoose.Schema({
       },
     },
   ],
-  notifications: {
-    type: Boolean,
-    default: true,
-    Timestamp: true,
-  },
+  notifications: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
+    },
+  ],
   joinedAt: {
     type: Date,
     default: Date.now,
@@ -115,3 +115,4 @@ const profileSchema = new mongoose.Schema({
 });
 
 module.exports = mongoose.model("Profile", profileSchema);
+

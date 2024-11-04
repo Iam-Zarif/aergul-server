@@ -22,3 +22,4 @@ const sendOTP = async (email, otp) => {
 };
 
 module.exports = { generateOTP, sendOTP };
+// service -> otpService.js

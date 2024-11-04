@@ -19,11 +19,6 @@ const corsOptions = {
 https: app.use(cors(corsOptions));
 app.use(express.json());
 
-console.log("Email:", process.env.EMAIL_USER);
-console.log("Password:", process.env.EMAIL_PASS);
-
-
-// Set Content Security Policy
 app.use((req, res, next) => {
   res.setHeader(
     "Content-Security-Policy",

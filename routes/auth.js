@@ -10,11 +10,11 @@ const dotenv = require("dotenv");
 const Profile = require("../models/profileSchema");
 const { generateOTP, sendOTP } = require("../service/otpService");
 
-
 dotenv.config();
-
 const router = express.Router();
 
+// In-memory store for temporary data
+const otpStore = new Map();
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -28,10 +28,15 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Import Profile model
+// Registration Route
+// Function to mask email address
+function maskEmail(email) {
+  const [localPart, domain] = email.split("@");
+  const maskedLocalPart = localPart.slice(0, 3) + "****";
+  return maskedLocalPart + "@" + domain;
+}
 
 router.post("/register", limiter, async (req, res) => {
-  const otpStore = new Map();
   try {
     const { name, email, password, photo } = req.body;
 
@@ -44,24 +49,80 @@ router.post("/register", limiter, async (req, res) => {
       return res.status(400).json({ message: "Email is already registered." });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Generate OTP and store user data temporarily
+    const otp = generateOTP();
+    otpStore.set(email, {
+      otp,
+      name,
+      email,
+      password,
+      photo,
+      expiresAt: Date.now() + 10 * 60000,
+    });
 
-    const uploadResult = await cloudinary.uploader.upload(photo, {
+    await sendOTP(email, otp);
+    const maskedEmail = maskEmail(email);
+
+    res.status(201).json({
+      message: "OTP sent for account creation",
+      otp: otp,
+      email: maskedEmail,
+    });
+  } catch (error) {
+    console.error("Registration error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+
+// OTP Verification Route
+router.post("/register-verify-otp", async (req, res) => {
+  const { email, otp } = req.body;
+
+  const storedData = otpStore.get(email);
+  if (!storedData) {
+    return res.status(400).json({ message: "Invalid or expired OTP" });
+  }
+
+  if (storedData.otp !== otp) {
+    return res.status(400).json({ message: "Invalid OTP" });
+  }
+
+  if (Date.now() > storedData.expiresAt) {
+    otpStore.delete(email);
+    return res.status(400).json({ message: "OTP has expired" });
+  }
+
+  try {
+    const hashedPassword = await bcrypt.hash(storedData.password, 10);
+
+    // Upload profile photo to Cloudinary
+    const uploadResult = await cloudinary.uploader.upload(storedData.photo, {
       folder: "user_photos",
     });
 
+    // Create the profile after OTP is verified
     const newProfile = new Profile({
-      name,
-      email,
+      name: storedData.name,
+      email: storedData.email,
       password: hashedPassword,
       profilePhoto: uploadResult.secure_url,
+      verified:true
     });
 
     await newProfile.save();
 
-    const token = jwt.sign({ email, name }, process.env.JWT_SECRET, {
-      expiresIn: "1h",
-    });
+    // Clear temporary data after successful verification
+    otpStore.delete(email);
+
+    // Generate a JWT token
+    const token = jwt.sign(
+      { email: storedData.email, name: storedData.name },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "1h",
+      }
+    );
 
     res.cookie("token", token, {
       httpOnly: true,
@@ -70,33 +131,23 @@ router.post("/register", limiter, async (req, res) => {
       sameSite: "Strict",
     });
 
-    const otp = generateOTP();
-    await sendOTP(email, otp);
-
-    otpStore.set(email, { otp, expiresAt: Date.now() + 10 * 60000 });
-    res
-      .status(201)
-      .json({
-        message: "OTP sent for account creation",
-        token,
-        otp,
-        profile: newProfile,
-      });
+    res.status(201).json({
+      message: "Account verified and profile created successfully",
+      token,
+      profile: newProfile,
+    });
   } catch (error) {
-    console.error("Registration error:", error);
+    console.error("OTP verification error:", error);
     res.status(500).json({ message: "Server error" });
   }
 });
 
-
-
-
-
+// Login Route
 router.post("/login", limiter, async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    if (!email ) {
+    if (!email || !password) {
       return res
         .status(400)
         .json({ message: "Email and password are required." });
@@ -125,13 +176,12 @@ router.post("/login", limiter, async (req, res) => {
       sameSite: "Strict",
     });
 
-    // Fetch profile data for response
     const profile = await Profile.findOne({ email }).select("-password");
 
     res.status(201).json({
       message: "Login successful",
       token,
-      user: profile, // Return profile data for frontend use
+      user: profile,
     });
   } catch (error) {
     console.error("Login error:", error);
@@ -140,6 +190,175 @@ router.post("/login", limiter, async (req, res) => {
 });
 
 
+router.post("/forgotPass/emailFind", async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await Profile.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: "Email not found" });
+    }
+    const otp = generateOTP();
+    otpStore.set(email, { otp, expiresAt: Date.now() + 10 * 60000 }); // OTP expires in 10 minutes
+
+    await sendOTP(email, otp);
+    const maskedEmail = maskEmail(email);
+
+    res.status(200).json({
+      message: "OTP sent to your email",
+      email: maskedEmail,
+      otp:otp
+    });
+  } catch (error) {
+    console.error("Forgot password error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Password Reset Route
+router.post("/forgotPass/resetPassword", async (req, res) => {
+  try {
+    const { email, newPassword, otp } = req.body;
+
+    if (!email || !newPassword || !otp) {
+      return res
+        .status(400)
+        .json({ message: "Email, OTP, and new password are required." });
+    }
+
+    const storedData = otpStore.get(email);
+    if (!storedData) {
+      return res.status(400).json({ message: "Invalid or expired OTP." });
+    }
+
+    if (storedData.otp !== otp) {
+      return res.status(400).json({ message: "Invalid OTP." });
+    }
+
+    if (Date.now() > storedData.expiresAt) {
+      otpStore.delete(email);
+      return res.status(400).json({ message: "OTP has expired." });
+    }
+
+    const user = await Profile.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    // Check if the user already has a password set
+    if (user.password) {
+      const isSamePassword = await bcrypt.compare(newPassword, user.password);
+      if (isSamePassword) {
+        return res
+          .status(400)
+          .json({
+            message: "New password cannot be the same as the previous one.",
+          });
+      }
+    }
+
+    // Hash the new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update the password in the database
+    await Profile.updateOne({ email }, { $set: { password: hashedPassword } });
+
+    // Clear the OTP from otpStore after successful password reset
+    otpStore.delete(email);
+
+    res.status(200).json({ message: "Password reset successfully." });
+  } catch (error) {
+    console.error("Password reset error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+
+
+
+
+router.post("/google/register", async (req, res) => {
+  const { email, name, photo } = req.body; // Changed `picture` to `photo`
+
+  try {
+    let user = await Profile.findOne({ email });
+
+    if (!user) {
+      user = new Profile({
+        name: name || "Anonymous User",
+        email,
+        profilePhoto: photo, // Use `photo` here as well
+        isGoogleUser: true,
+        verified: true,
+      });
+      await user.save();
+    }
+
+    const jwtToken = jwt.sign(
+      { email: user.email, name: user.name },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+
+    res.cookie("token", jwtToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 3600000,
+      sameSite: "Strict",
+    });
+
+    res.status(201).json({
+      message: "Account created or login successful",
+      token: jwtToken,
+      user,
+    });
+  } catch (error) {
+    console.error("Google registration error:", error);
+    res
+      .status(500)
+      .json({ message: "Server error during Google registration" });
+  }
+});
+
+router.post("/google/login", async (req, res) => {
+  const { email } = req.body; // Extract the email from the request body
+
+  try {
+    // Check if the user exists
+    const user = await Profile.findOne({ email });
+
+    // If user does not exist, respond with an error
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Generate a JWT token for the user
+    const jwtToken = jwt.sign(
+      { email: user.email, name: user.name },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" } // Token expiration time
+    );
+
+    // Set the token in cookies
+    res.cookie("token", jwtToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 3600000, // 1 hour
+      sameSite: "Strict",
+    });
+
+    // Respond with success message
+    res.status(200).json({
+      message: "Login successful",
+      token: jwtToken,
+      user,
+    });
+  } catch (error) {
+    console.error("Google login error:", error);
+    res.status(500).json({ message: "Server error during Google login" });
+  }
+});
 
 module.exports = router;
-//routes - auth.js
+
+
+module.exports = router;
