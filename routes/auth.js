@@ -145,7 +145,7 @@ router.post("/register-verify-otp", async (req, res) => {
 // Login Route
 router.post("/login", limiter, async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, rememberMe } = req.body;
 
     if (!email || !password) {
       return res
@@ -163,31 +163,45 @@ router.post("/login", limiter, async (req, res) => {
       return res.status(400).json({ message: "Invalid email or password." });
     }
 
+    const expiresIn = rememberMe ? "180d" : "1d"; // 6 months or 1 hour
     const token = jwt.sign(
       { email: user.email, name: user.name },
       process.env.JWT_SECRET,
-      { expiresIn: "1h" }
+      { expiresIn }
     );
 
     res.cookie("token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      maxAge: 3600000,
+      maxAge: rememberMe ? 180 * 24 * 60 * 60 * 1000 : 3600000, // 6 months or 1 hour
       sameSite: "Strict",
     });
 
+    // Return success response
     const profile = await Profile.findOne({ email }).select("-password");
+
+    // Calculate the token expiration time
+    const expirationDate = rememberMe
+      ? Date.now() + 180 * 24 * 60 * 60 * 1000 // 6 months in milliseconds
+      : Date.now() + 3600000; // 1 hour in milliseconds
+
+    // Convert to a human-readable format
+    const humanReadableExpiration = new Date(expirationDate).toLocaleString();
 
     res.status(201).json({
       message: "Login successful",
       token,
       user: profile,
+      rememberMe,
+      expiresIn: humanReadableExpiration, // Include the human-readable expiration time
     });
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({ message: "Server error" });
   }
 });
+
+
 
 
 router.post("/forgotPass/emailFind", async (req, res) => {
@@ -273,9 +287,6 @@ router.post("/forgotPass/resetPassword", async (req, res) => {
 });
 
 
-
-
-
 router.post("/google/register", async (req, res) => {
   const { email, name, photo } = req.body; // Changed `picture` to `photo`
 
@@ -357,6 +368,23 @@ router.post("/google/login", async (req, res) => {
     res.status(500).json({ message: "Server error during Google login" });
   }
 });
+
+// Logout Route
+router.post("/logout", (req, res) => {
+  try {
+    res.clearCookie("token", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "Strict",
+    });
+
+    res.status(200).json({ message: "Logout successful" });
+  } catch (error) {
+    console.error("Logout error:", error);
+    res.status(500).json({ message: "Server error during logout" });
+  }
+});
+
 
 module.exports = router;
 
