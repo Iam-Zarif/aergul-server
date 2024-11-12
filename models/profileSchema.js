@@ -15,17 +15,17 @@ const profileSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    minlength: 6,
+    minlength: 8,
   },
   phone: {
-    type: String, // Remove `required: true` to make it optional
+    type: String,
+    default: "",
   },
   address: {
+    house: String,
     street: String,
-    city: String,
-    state: String,
     postalCode: String,
-    country: String,
+    city: String,
   },
   profilePhoto: {
     type: String,
