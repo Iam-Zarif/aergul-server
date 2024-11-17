@@ -33,6 +33,7 @@ const profileSchema = new mongoose.Schema({
   },
   dateOfBirth: {
     type: Date,
+    default:""
   },
   wishlist: [
     {
@@ -100,8 +101,8 @@ const profileSchema = new mongoose.Schema({
   feedbacks: [
     {
       type: mongoose.Schema.Types.ObjectId,
+      ref: "Feedback",
       default: [],
-      Timestamp: true,
     },
   ],
   isGoogleUser: {
@@ -115,4 +116,5 @@ const profileSchema = new mongoose.Schema({
 });
 
 module.exports = mongoose.model("Profile", profileSchema);
+// models - profileSchema.js
 

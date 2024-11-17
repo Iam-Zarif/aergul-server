@@ -28,8 +28,6 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Registration Route
-// Function to mask email address
 function maskEmail(email) {
   const [localPart, domain] = email.split("@");
   const maskedLocalPart = localPart.slice(0, 3) + "****";

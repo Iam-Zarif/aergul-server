@@ -3,7 +3,8 @@ const cors = require("cors");
 const helmet = require("helmet");
 const authRoutes = require("./routes/auth");
 const { connectDB } = require("./config/db");
-const profileRoutes = require("./routes/profile"); // Profile routes
+const profileRoutes = require("./routes/profile"); 
+const productRoutes = require("./routes/newArrival");
 
 const cookieParser = require("cookie-parser");
 
@@ -31,6 +32,7 @@ connectDB();
 
 app.use("/auth", authRoutes);
 app.use("/user", profileRoutes);
+app.use("/product", productRoutes);
 
 app.get("/", (req, res) => {
   res.send("Welcome to the API!");
