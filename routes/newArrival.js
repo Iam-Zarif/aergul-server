@@ -1,7 +1,9 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
-const NewArrival = require("../models/newArrivalSchema");
+const NewArrival = require("../models/productSchema");
+const { default: mongoose } = require("mongoose");
+
 dotenv.config();
 
 const router = express.Router();
@@ -43,7 +45,7 @@ const formatDate = (dateString) => {
 };
 
 router.get("/newArrival", authenticate, async (req, res) => {
-  console.log("new arrival collection name",NewArrival.collection.name); // Check the collection name being used.
+  console.log("new arrival collection name", NewArrival.collection.name);
 
   try {
     const newArrival = await NewArrival.find().sort({ createdAt: -1 });
@@ -53,7 +55,7 @@ router.get("/newArrival", authenticate, async (req, res) => {
       createdAt: formatDate(item.createdAt),
     }));
 
-    res.status(200).json({
+    res.status(201).json({
       message: "New arrivals fetched successfully",
       data: formattedArrivals,
     });
@@ -63,4 +65,37 @@ router.get("/newArrival", authenticate, async (req, res) => {
   }
 });
 
+router.get("/newArrival/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log("Received ID:", id);
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      console.log("Invalid ObjectId");
+      return res.status(400).json({ message: "Invalid ID format" });
+    }
+
+    const product = await NewArrival.findById(id);
+    console.log("Database Query Result:", product);
+
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    res
+      .status(200)
+      .json({ message: "Product fetched successfully", data: product });
+  } catch (error) {
+    console.error("Error fetching product:", error.message);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+
+
+
+
+
 module.exports = router;
+
+// routes -> newArrival.js
