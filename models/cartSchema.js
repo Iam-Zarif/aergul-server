@@ -1,22 +1,20 @@
 const mongoose = require("mongoose");
 
-const productSchema = new mongoose.Schema(
+const cartSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true },
-    price: { type: Number, required: true },
+    name: { type: String },
+    price: { type: Number },
     offerPrice: { type: Number },
-    quantity: { type: Number,default:0},
-   type:{ type: String , default:"unknown" },
     discount: { type: Number, default: 0 },
-    thumb: { type: String }, 
-    thumbnails: [{ type: String }], 
+    thumb: { type: String },
+    thumbnails: [{ type: String }],
     keyFeatures: [{ type: String }], // Array for quick overview
     sizes: [{ type: String }], // Available sizes (e.g., ["S", "M", "L"])
     description: { type: String }, // Long product description
     productDetails: [
       {
-        section: { type: String, required: true },
-        content: { type: [String], required: true },
+        section: { type: String },
+        content: { type: [String] },
       },
     ],
     qa: [
@@ -27,8 +25,8 @@ const productSchema = new mongoose.Schema(
     ], // QA Section
     reviews: [
       {
-        user: { type: String, required: true },
-        rating: { type: Number, required: true, min: 1, max: 5 },
+        user: { type: String },
+        rating: { type: Number, min: 1, max: 5 },
         comment: { type: String },
         date: { type: Date, default: Date.now },
       },
@@ -39,13 +37,13 @@ const productSchema = new mongoose.Schema(
         price: { type: Number },
         discount: { type: Number },
         thumb: { type: String },
-        productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product" }, // Reference to other products
+        productId: { type: mongoose.Schema.Types.ObjectId, ref: "cart" }, // Reference to other products
       },
     ], // Similar Products Section
     createdAt: { type: Date, default: Date.now },
   },
-  { timestamps: true, collection: "product" }
+  { timestamps: true, collection: "cart" }
 );
 
-module.exports = mongoose.model("Product", productSchema);
-// models -> productSchema.js
+module.exports = mongoose.model("Cart", cartSchema);
+// models -> cartSchema.js
