@@ -1,29 +1,19 @@
 const express = require("express");
 const cors = require("cors");
-const helmet = require("helmet");
-const cookieParser = require("cookie-parser");
 const authRoutes = require("./routes/auth");
+const { connectDB } = require("./config/db");
 const profileRoutes = require("./routes/profile");
 const productRoutes = require("./routes/newArrival");
 const cartRoutes = require("./routes/cart");
-const { connectDB } = require("./config/db");
+const cookieParser = require("cookie-parser");
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-
-const corsOptions = {
-  origin: ["http://localhost:5173", "https://aergul-mu.vercel.app"],
-};
-
-app.use(helmet());
-app.use(cors(corsOptions)); // CORS middleware
-app.use(express.json());
 app.use(cookieParser());
-
-// Database connection
+app.use(cors({ origin: "*", credentials: false }));
+app.use(express.json());
 connectDB();
 
-// Routes
+// Define API routes
 app.use("/auth", authRoutes);
 app.use("/user", profileRoutes);
 app.use("/product", productRoutes);
@@ -33,14 +23,7 @@ app.get("/", (req, res) => {
   res.send("Welcome to the API!");
 });
 
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res
-    .status(err.status || 500)
-    .json({ message: err.message || "Internal Server Error" });
-});
-
-// Start server
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
