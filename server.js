@@ -6,28 +6,32 @@ const { connectDB } = require("./config/db");
 const profileRoutes = require("./routes/profile"); 
 const productRoutes = require("./routes/newArrival");
 const cartRoutes = require("./routes/cart");
-
 const cookieParser = require("cookie-parser");
-
 const app = express();
-app.use(cookieParser());
 
-
-app.use(helmet());
 const corsOptions = {
   origin: ["http://localhost:5173", "https://aergul-mu.vercel.app"],
   credentials: true,
 };
-https: app.use(cors(corsOptions));
-app.use(express.json());
+
+app.use(cors(corsOptions)); // Apply CORS first
+app.use(express.json()); // Parse incoming JSON requests
+app.use(cookieParser()); // Parse cookies
+app.use(helmet()); // Security middleware
+
+app.options("*", cors(corsOptions)); 
 
 app.use((req, res, next) => {
-  res.setHeader(
-    "Content-Security-Policy",
-    "default-src 'self'; script-src 'self';"
+  res.header("Access-Control-Allow-Origin", req.headers.origin);
+  res.header("Access-Control-Allow-Methods", "GET,HEAD,PUT,PATCH,POST,DELETE");
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
   );
+  res.header("Access-Control-Allow-Credentials", "true");
   next();
 });
+
 
 connectDB();
 
