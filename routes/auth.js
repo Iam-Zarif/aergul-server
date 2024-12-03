@@ -1,9 +1,6 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const nodemailer = require("nodemailer");
-const passport = require("../config/passport.js");
-const cookieParser = require("cookie-parser");
 const rateLimit = require("express-rate-limit");
 const cloudinary = require("cloudinary").v2;
 const dotenv = require("dotenv");
@@ -175,15 +172,12 @@ router.post("/login", limiter, async (req, res) => {
       sameSite: "Strict",
     });
 
-    // Return success response
     const profile = await Profile.findOne({ email }).select("-password");
 
-    // Calculate the token expiration time
     const expirationDate = rememberMe
-      ? Date.now() + 180 * 24 * 60 * 60 * 1000 // 6 months in milliseconds
-      : Date.now() + 3600000; // 1 hour in milliseconds
+      ? Date.now() + 180 * 24 * 60 * 60 * 1000 
+      : Date.now() + 3600000; 
 
-    // Convert to a human-readable format
     const humanReadableExpiration = new Date(expirationDate).toLocaleString();
 
     res.status(201).json({
@@ -191,7 +185,7 @@ router.post("/login", limiter, async (req, res) => {
       token,
       user: profile,
       rememberMe,
-      expiresIn: humanReadableExpiration, // Include the human-readable expiration time
+      expiresIn: humanReadableExpiration,
     });
   } catch (error) {
     console.error("Login error:", error);

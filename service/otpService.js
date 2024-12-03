@@ -14,8 +14,17 @@ const sendOTP = async (email, otp) => {
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: email,
-    subject: "Your OTP for Registration",
-    text: `Your OTP is ${otp}. It will expire in 10 minutes.`,
+    subject: "Your One-Time Password (OTP)",
+    html: `
+       <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; padding: 20px; border: 1px solid #ddd; border-radius: 10px; max-width: 500px; margin: auto; text-align: center;">
+  <p>Your one-time OTP is:</p>
+  <div style="margin: 20px 0;">
+    <code style="font-size: 24px; font-weight: bold; color: #4CAF50; padding: 10px; background: #f9f9f9; border-radius: 5px; display: inline-block;">${otp}</code>
+  </div>
+  <p>Please use this OTP within <strong>5 minutes</strong>. Do not share this with anyone.</p>
+</div>
+
+      `,
   };
 
   await transporter.sendMail(mailOptions);

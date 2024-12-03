@@ -47,7 +47,6 @@ router.post("/", authenticate, async (req, res) => {
       return res.status(404).json({ message: "Product not found." });
     }
 
-    // Fetch or create a cart for the user
     let cart = await Cart.findOne({ userId: req.user.id });
 
     if (!cart) {

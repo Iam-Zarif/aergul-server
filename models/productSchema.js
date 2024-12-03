@@ -5,14 +5,16 @@ const productSchema = new mongoose.Schema(
     name: { type: String, required: true },
     price: { type: Number, required: true },
     offerPrice: { type: Number },
-    quantity: { type: Number,default:0},
-   type:{ type: String , default:"unknown" },
+    quantity: { type: Number, default: 0 },
+    type: { type: String, default: "unknown" },
+    material: { type: String, default: "unknown" },
+    brand: { type: String, required: true },
     discount: { type: Number, default: 0 },
-    thumb: { type: String }, 
-    thumbnails: [{ type: String }], 
-    keyFeatures: [{ type: String }], // Array for quick overview
-    sizes: [{ type: String }], // Available sizes (e.g., ["S", "M", "L"])
-    description: { type: String }, // Long product description
+    thumb: { type: String },
+    thumbnails: [{ type: String }],
+    keyFeatures: [{ type: String }], 
+    sizes: [{ type: String }], 
+    description: { type: String }, 
     productDetails: [
       {
         section: { type: String, required: true },
@@ -24,7 +26,7 @@ const productSchema = new mongoose.Schema(
         question: { type: String },
         answer: { type: String },
       },
-    ], // QA Section
+    ], 
     reviews: [
       {
         user: { type: String, required: true },
@@ -32,16 +34,16 @@ const productSchema = new mongoose.Schema(
         comment: { type: String },
         date: { type: Date, default: Date.now },
       },
-    ], // Reviews Section
+    ], 
     similarProducts: [
       {
         name: { type: String },
         price: { type: Number },
         discount: { type: Number },
         thumb: { type: String },
-        productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product" }, // Reference to other products
+        productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product" }, 
       },
-    ], // Similar Products Section
+    ],
     createdAt: { type: Date, default: Date.now },
   },
   { timestamps: true, collection: "product" }

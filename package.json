@@ -31,7 +31,6 @@
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "rate-limit-express": "^2.2.2",
-    "redis": "^4.7.0",
     "vercel": "^37.12.1",
     "yup": "^1.4.0"
   },
