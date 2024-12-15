@@ -19,7 +19,6 @@ const connectDB = async () => {
 
   mongoose.set("debug", process.env.NODE_ENV === "development");
 
-  // Graceful shutdown
   process.on("SIGINT", async () => {
     await mongoose.connection.close();
     console.log("MongoDB connection closed.");

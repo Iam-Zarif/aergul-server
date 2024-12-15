@@ -33,7 +33,7 @@ const profileSchema = new mongoose.Schema({
   },
   dateOfBirth: {
     type: Date,
-    default:""
+    default: "",
   },
   wishlist: [
     {
@@ -41,18 +41,22 @@ const profileSchema = new mongoose.Schema({
       ref: "Product",
     },
   ],
-  cart: [
-    {
-      product: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Product",
+  cart: {
+    type: [
+      {
+        product: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Product",
+        },
+        quantity: {
+          type: Number,
+          default: 1,
+        },
       },
-      quantity: {
-        type: Number,
-        default: 1,
-      },
-    },
-  ],
+    ],
+    default: [],
+  },
+
   orderHistory: [
     {
       orderId: {

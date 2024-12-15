@@ -1,19 +1,24 @@
 const express = require("express");
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
 const authRoutes = require("./routes/auth");
 const { connectDB } = require("./config/db");
 const profileRoutes = require("./routes/profile");
 const productRoutes = require("./routes/newArrival");
 const cartRoutes = require("./routes/cart");
-const cookieParser = require("cookie-parser");
 
 const app = express();
 app.use(cookieParser());
-app.use(cors({ origin: "*", credentials: false }));
+
+const corsOptions = {
+  origin: ["http://localhost:5173", "https://aergul-mu.vercel.app"],
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 connectDB();
 
-// Define API routes
 app.use("/auth", authRoutes);
 app.use("/user", profileRoutes);
 app.use("/product", productRoutes);

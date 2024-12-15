@@ -2,8 +2,7 @@ const express = require("express");
 const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
 const { default: mongoose } = require("mongoose");
-const Cart = require("../models/cartSchema"); // Assuming you have a Cart model
-
+const Cart = require("../models/cartSchema");
 dotenv.config();
 
 const router = express.Router();
@@ -13,95 +12,90 @@ const authenticate = (req, res, next) => {
   const token =
     req.cookies.token || req.header("Authorization")?.replace("Bearer ", "");
   if (!token) {
-    return res
-      .status(401)
-      .json({ message: "No token provided, authorization denied." });
+    console.log("No token provided.");
+    return res.status(401).json({ message: "Authorization denied." });
   }
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded;
+    console.log("Token verified:", decoded);
     next();
   } catch (error) {
+    console.error("Invalid token:", error.message);
     res.status(401).json({ message: "Invalid token." });
   }
 };
 
-// POST method to add items to the cart
-router.post("/", authenticate, async (req, res) => {
+router.post("/add-cart", authenticate, async (req, res) => {
   const { productId, quantity } = req.body;
 
   if (!productId || !quantity) {
+    console.log("Missing product ID or quantity in the request body.");
     return res
       .status(400)
       .json({ message: "Product ID and quantity are required." });
   }
 
   try {
-    // Fetch product details from the database
-    const product = await mongoose
-      .model("Product") // Replace "Product" with your product model name
-      .findById(productId);
+    const Product = mongoose.model("Product");
+    const Profile = mongoose.model("Profile");
 
+    // Fetch product details
+    const product = await Product.findById(productId);
     if (!product) {
+      console.log(`Product not found for ID: ${productId}`);
       return res.status(404).json({ message: "Product not found." });
     }
+    console.log("Product found:", product);
 
-    let cart = await Cart.findOne({ userId: req.user.id });
+    // Find the user profile
+    const profile = await Profile.findOne({ email: req.user.email }).select(
+      "-password"
+    );
+    if (!profile) {
+      console.log(`Profile not found for user ID: ${req.user.id}`);
+      return res.status(404).json({ message: "Profile not found." });
+    }
+    console.log("Profile found:", profile);
 
-    if (!cart) {
-      // Create a new cart if it doesn't exist
-      cart = new Cart({
-        userId: req.user.id,
-        items: [
-          {
-            productId: product._id,
-            quantity,
-            name: product.name,
-            price: product.price,
-            thumb: product.thumb, // Example field
-            thumbnails: product.thumbnails, // Example field
-          },
-        ],
-      });
+    // Check if the product is already in the cart
+    const existingItemIndex = profile.cart.findIndex(
+      (item) => item.product.toString() === product._id.toString()
+    );
+    console.log(
+      "Cart check:",
+      existingItemIndex !== -1
+        ? "Product exists in cart."
+        : "Product not in cart."
+    );
+
+    if (existingItemIndex !== -1) {
+      profile.cart[existingItemIndex].quantity += quantity;
+      console.log("Updated quantity for existing cart item.");
     } else {
-      // Check if the product is already in the cart
-      const existingItemIndex = cart.items.findIndex(
-        (item) => item.productId.toString() === product._id.toString()
-      );
-
-      if (existingItemIndex !== -1) {
-        // Update the quantity if the product is already in the cart
-        cart.items[existingItemIndex].quantity += quantity;
-      } else {
-        // Add the new product to the cart
-        cart.items.push({
-          productId: product._id,
-          quantity,
-          name: product.name,
-          price: product.price,
-          thumb: product.thumb,
-          thumbnails: product.thumbnails,
-        });
-      }
+      profile.cart.push({ product: product._id, quantity });
+      console.log("New product added to cart.");
     }
 
-    // Save the updated cart
-    await cart.save();
+    // Save the updated profile
+    const updatedProfile = await profile.save();
+    console.log("Profile updated successfully:", updatedProfile);
 
-    res.status(200).json({ message: "Product added to cart", data: cart });
+    res
+      .status(200)
+      .json({ message: "Product added to cart", data: updatedProfile.cart });
   } catch (error) {
-    console.error("Error adding product to cart:", error);
+    console.error("Error in POST /cart:", error.message);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
 
-router.get("/", authenticate, async (req, res) => {
+
+router.get("/profile-cart", authenticate, async (req, res) => {
   try {
-    // Find the cart for the user
-    const cart = await Cart.findOne({ userId: req.user.id }).populate(
-      "items.productId" 
-    );
+  console.log("cart collection name", Cart);
+   const cart = await Cart.find().sort({ createdAt: -1 });
 
     if (!cart) {
       return res.status(404).json({ message: "Cart not found." });

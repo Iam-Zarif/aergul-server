@@ -28,9 +28,8 @@
     "mongoose": "^8.7.2",
     "morgan": "^1.10.0",
     "nodemailer": "^6.9.15",
-    "passport": "^0.7.0",
-    "passport-google-oauth20": "^2.0.0",
     "rate-limit-express": "^2.2.2",
+    "twilio": "^5.4.0",
     "vercel": "^37.12.1",
     "yup": "^1.4.0"
   },

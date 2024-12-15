@@ -6,6 +6,7 @@ const cloudinary = require("cloudinary").v2;
 const dotenv = require("dotenv");
 const Profile = require("../models/profileSchema");
 const { generateOTP, sendOTP } = require("../service/otpService");
+const { phoneOtp, sendPhoneOTP } = require("../service/phoneOtpService");
 
 dotenv.config();
 const router = express.Router();
@@ -31,6 +32,35 @@ function maskEmail(email) {
   return maskedLocalPart + "@" + domain;
 }
 
+router.post("/send-phone-otp", async (req, res) => {
+  const { phone } = req.body; // Extract phone number from request body
+
+  if (!phone) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Phone number is required." });
+  }
+
+  const otp = phoneOtp(); // Generate a 5-digit OTP
+
+  try {
+    await sendPhoneOTP(phone, otp); // Send OTP using the Twilio service
+    return res.status(200).json({
+      success: true,
+      message: "OTP sent successfully.",
+      phone: phone,
+      otp: otp, // For testing purposes; remove in production
+    });
+  } catch (error) {
+    console.error("Error sending OTP:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to send OTP.",
+      error: error.message,
+    });
+  }
+});
+
 router.post("/register", limiter, async (req, res) => {
   try {
     const { name, email, password, photo } = req.body;
@@ -43,8 +73,6 @@ router.post("/register", limiter, async (req, res) => {
     if (existingUser) {
       return res.status(400).json({ message: "Email is already registered." });
     }
-
-    // Generate OTP and store user data temporarily
     const otp = generateOTP();
     otpStore.set(email, {
       otp,
@@ -96,7 +124,6 @@ router.post("/register-verify-otp", async (req, res) => {
       folder: "user_photos",
     });
 
-    // Create the profile after OTP is verified
     const newProfile = new Profile({
       name: storedData.name,
       email: storedData.email,
@@ -194,8 +221,6 @@ router.post("/login", limiter, async (req, res) => {
 });
 
 
-
-
 router.post("/forgotPass/emailFind", async (req, res) => {
   try {
     const { email } = req.body;
@@ -249,8 +274,6 @@ router.post("/forgotPass/resetPassword", async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "User not found." });
     }
-
-    // Check if the user already has a password set
     if (user.password) {
       const isSamePassword = await bcrypt.compare(newPassword, user.password);
       if (isSamePassword) {
@@ -262,13 +285,10 @@ router.post("/forgotPass/resetPassword", async (req, res) => {
       }
     }
 
-    // Hash the new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    // Update the password in the database
     await Profile.updateOne({ email }, { $set: { password: hashedPassword } });
 
-    // Clear the OTP from otpStore after successful password reset
     otpStore.delete(email);
 
     res.status(200).json({ message: "Password reset successfully." });
@@ -376,9 +396,6 @@ router.post("/logout", (req, res) => {
     res.status(500).json({ message: "Server error during logout" });
   }
 });
-
-
-module.exports = router;
 
 
 module.exports = router;
