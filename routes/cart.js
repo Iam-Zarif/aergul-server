@@ -40,42 +40,47 @@ router.post("/add-to-cart", authenticate, async (req, res) => {
     const Product = mongoose.model("Product");
     const Profile = mongoose.model("Profile");
 
+    // Check if the product exists
     const product = await Product.findById(productId);
     if (!product) {
       return res.status(404).json({ message: "Product not found." });
     }
 
+    // Find the user's profile
     const profile = await Profile.findOne({ email: req.user.email });
     if (!profile) {
       return res.status(404).json({ message: "Profile not found." });
     }
 
+    // Check for duplicate item in the cart
     const existingItem = profile.cart.find(
-      (item) => item.product.toString() === product._id.toString()
+      (item) => item.product.toString() === productId
     );
 
     if (existingItem) {
-      existingItem.quantity = quantity;
-    } else {
-      profile.cart.push({
-        product: product._id,
-        quantity,
-      });
+      return res
+        .status(400)
+        .json({ message: "Duplicate item: Product already in the cart." });
     }
 
+    // Add the new product to the cart
+    profile.cart.push({
+      product: productId,
+      quantity,
+    });
+
+    // Save the updated profile
     await profile.save();
 
     res.status(200).json({
-      message: "Cart updated successfully",
+      message: "Product added to cart successfully.",
       cart: profile.cart,
     });
   } catch (error) {
     console.error("Error updating cart:", error);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 });
-
-
 
 
 

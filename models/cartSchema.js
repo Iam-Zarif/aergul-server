@@ -23,7 +23,7 @@ const cartSchema = new mongoose.Schema(
         question: { type: String },
         answer: { type: String },
       },
-    ], // QA Section
+    ],
     reviews: [
       {
         user: { type: String },
